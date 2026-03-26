@@ -15,7 +15,9 @@ $content = Get-Content -LiteralPath $path -Raw
 # Remove "process" from enabled_collectors
 $content = $content -replace ',\s*"process"', ''
 $content = $content -replace '"process",\s*', ''
-Set-Content -LiteralPath $path $updated
+
+# ✅ FIXED LINE
+Set-Content -LiteralPath $path -Value $content
 
 Write-Host "===== AFTER ====="
 Get-Content $path | Select-String "enabled_collectors"

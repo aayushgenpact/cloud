@@ -5,7 +5,7 @@ $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $backup = "$path.bak_$timestamp"
 
 Copy-Item -LiteralPath $path -Destination $backup -Force
-Write-Host "✅ Backup created: $backup"
+Write-Host "Backup created: $backup"
 
 Write-Host "===== BEFORE ====="
 Get-Content $path | Select-String "enabled_collectors"

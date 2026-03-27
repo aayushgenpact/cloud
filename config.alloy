@@ -106,12 +106,11 @@ prometheus.relabel "integrations_windows_exporter" {
     source_labels = ["__name__"]
   }
 
-rule {
+  rule {
     source_labels = ["name"]
-    regex         = "(?i)(active directory synchronization service.*|background runtime service.*|job execution service.*)"
+    regex         = "^$|(?i)(active directory synchronization service.*|background runtime service.*|job execution service.*)"
     action        = "keep"
   }
-
 }
 
 

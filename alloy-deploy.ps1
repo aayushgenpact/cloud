@@ -135,20 +135,22 @@ param (
 $alloyPath = "C:\Program Files\GrafanaLabs\Alloy"
 $configPath = "$alloyPath\config.alloy"
 $backup = "$configPath" + "_bak"
-$serviceName = "alloy"
 
 Write-Host "===== Alloy Deployment Started ====="
 
+# ===== FUNCTION: DETECT SERVICE =====
+function Get-AlloyService {
+    return Get-Service | Where-Object {
+        $_.Name -like "*alloy*" -or $_.DisplayName -like "*alloy*"
+    } | Select-Object -First 1
+}
+
 # ===== FUNCTION: WAIT FOR SERVICE =====
 function Wait-ForService {
-    param (
-        [string]$name,
-        [int]$maxRetry = 30
-    )
+    param ([string]$name)
 
     $retry = 0
-
-    Write-Host "Waiting for service '$name'..."
+    $maxRetry = 30
 
     while ($retry -lt $maxRetry) {
 
@@ -160,7 +162,7 @@ function Wait-ForService {
         }
 
         if ($svc) {
-            Write-Host "Service found but not running. Attempting start..."
+            Write-Host "Starting service '$name'..."
             Start-Service $name -ErrorAction SilentlyContinue
         }
 
@@ -168,7 +170,7 @@ function Wait-ForService {
         $retry++
     }
 
-    Write-Host "ERROR: Service '$name' not running after waiting"
+    Write-Host "ERROR: Service '$name' not running after wait"
     exit 1
 }
 
@@ -177,62 +179,51 @@ function Update-AlloyConfig {
 
     Write-Host "Updating Alloy config..."
 
-    # Backup
     if (Test-Path $configPath) {
         Copy-Item $configPath $backup -Force
         Write-Host "Backup created"
     }
 
-    # Download config
     $url = "https://raw.githubusercontent.com/aayushgenpact/cloud/main/config.alloy"
     $tempFile = "$env:TEMP\config.alloy"
 
     Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing
 
     if (!(Test-Path $tempFile)) {
-        Write-Host "ERROR: Failed to download config"
+        Write-Host "ERROR: Config download failed"
         exit 1
     }
 
-    # Replace config
     Copy-Item $tempFile $configPath -Force
 
     Write-Host "Config replaced"
 
-    # Restart service
-    Restart-Service $serviceName -Force
+    $svc = Get-AlloyService
 
-    # Wait again after restart
-    Wait-ForService -name $serviceName
+    Restart-Service $svc.Name -Force
 
-    Write-Host "Config updated and service restarted"
+    Wait-ForService -name $svc.Name
+
+    Write-Host "Config updated successfully"
 }
 
 # ===== MAIN LOGIC =====
 
-if (Test-Path $alloyPath) {
+$svc = Get-AlloyService
 
-    Write-Host "Alloy is already installed"
+if (-not $svc -or $svc.Status -ne "Running") {
 
-    # Ensure service is running before config update
-    Wait-ForService -name $serviceName
-
-    Update-AlloyConfig
-
-} else {
-
-    Write-Host "Alloy not found. Installing..."
+    Write-Host "Alloy service not running. Installing/Reinstalling..."
 
     cd ([System.IO.Path]::GetTempPath())
 
     Invoke-WebRequest "https://storage.googleapis.com/cloud-onboarding/alloy/scripts/install-windows.ps1" -OutFile "install-windows.ps1"
 
     if (!(Test-Path "install-windows.ps1")) {
-        Write-Host "ERROR: Failed to download installer"
+        Write-Host "ERROR: Installer download failed"
         exit 1
     }
 
-    # Install Alloy
     .\install-windows.ps1 `
         -GCLOUD_HOSTED_METRICS_URL $METRICS_URL `
         -GCLOUD_HOSTED_METRICS_ID $METRICS_ID `
@@ -243,17 +234,24 @@ if (Test-Path $alloyPath) {
 
     Write-Host "Install command executed"
 
-    # Wait until service is fully ready
-    Wait-ForService -name $serviceName
+    # Re-detect service after install
+    $svc = Get-AlloyService
 
-    Write-Host "Alloy installation completed"
+    if (-not $svc) {
+        Write-Host "ERROR: Alloy service not created after install"
+        exit 1
+    }
 
-    # Now apply config (same logic)
-    Update-AlloyConfig
+    Wait-ForService -name $svc.Name
+
+    Write-Host "Alloy installed successfully"
 }
 
+# ===== ALWAYS UPDATE CONFIG =====
+Update-AlloyConfig
+
 # ===== FINAL VALIDATION =====
-$svc = Get-Service $serviceName -ErrorAction SilentlyContinue
+$svc = Get-AlloyService
 
 if (-not $svc -or $svc.Status -ne "Running") {
     Write-Host "ERROR: Final validation failed"

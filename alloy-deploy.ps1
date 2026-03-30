@@ -258,4 +258,5 @@ if (-not $svc -or $svc.Status -ne "Running") {
     exit 1
 }
 
-Write-Host "===== Deployment Completed Successfully ====="
+Write-Host "DEPLOYMENT_SUCCESS"
+exit 0

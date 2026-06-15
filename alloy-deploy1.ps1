@@ -9,6 +9,30 @@ param (
 $alloyPath = "C:\Program Files\GrafanaLabs\Alloy"
 $configPath = "$alloyPath\config.alloy"
 $backup = "$configPath" + "_bak"
+function Wait-ForService {
+    param ([string]$name)
+
+    $retry = 0
+    $maxRetry = 30
+
+    while ($retry -lt $maxRetry) {
+
+        $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+
+        if ($svc -and $svc.Status -eq "Running") {
+            return
+        }
+
+        if ($svc) {
+            Start-Service $name -ErrorAction SilentlyContinue
+        }
+
+        Start-Sleep -Seconds 10
+        $retry++
+    }
+
+    throw "Service '$name' not running after wait"
+}
 # ===== FUNCTION: SET ENVIRONMENT VARIABLES =====
 function Set-AlloyEnvironmentVariables {
 

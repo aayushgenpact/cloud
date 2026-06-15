@@ -87,13 +87,53 @@ function Update-AlloyConfig {
     }
 
     $url = "https://raw.githubusercontent.com/aayushgenpact/cloud/main/config.alloy"
-    $tempFile = "$env:TEMP\config.alloy"
+    $tempFile = "C:\Program Files\GrafanaLabs\Alloy\config_downloaded.alloy"
 
-    Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing
+    try {
+
+        Invoke-WebRequest `
+            -Uri $url `
+            -OutFile $tempFile `
+            -UseBasicParsing `
+            -ErrorAction Stop
+
+    }
+    catch {
+
+        Write-Host "ERROR: Failed to download config"
+        Write-Host $_.Exception.Message
+        exit 1
+    }
 
     if (!(Test-Path $tempFile)) {
-        Write-Host "ERROR: Config download failed"
+
+        Write-Host "ERROR: Downloaded config file not found"
         exit 1
+    }
+
+    $file = Get-Item $tempFile
+
+    if ($file.Length -lt 1000) {
+
+        Write-Host "ERROR: Downloaded config appears invalid. File size: $($file.Length)"
+        exit 1
+    }
+
+    $configContent = Get-Content $tempFile -Raw
+
+    $requiredBlocks = @(
+        "prometheus.remote_write",
+        "prometheus.exporter.windows",
+        "loki.write"
+    )
+
+    foreach ($block in $requiredBlocks) {
+
+        if ($configContent -notmatch [regex]::Escape($block)) {
+
+            Write-Host "ERROR: Config validation failed. Missing block: $block"
+            exit 1
+        }
     }
 
     Copy-Item $tempFile $configPath -Force
@@ -107,6 +147,35 @@ function Update-AlloyConfig {
     Restart-Service $svc.Name -Force
 
     Wait-ForService -name $svc.Name
+
+    Start-Sleep -Seconds 10
+
+    try {
+
+        Invoke-WebRequest `
+            -Uri "http://localhost:12345/metrics" `
+            -UseBasicParsing `
+            -ErrorAction Stop | Out-Null
+
+        Write-Host "Alloy health check successful"
+    }
+    catch {
+
+        Write-Host "ERROR: Alloy health check failed"
+
+        if (Test-Path $backup) {
+
+            Write-Host "Restoring previous config"
+
+            Copy-Item $backup $configPath -Force
+
+            Restart-Service $svc.Name -Force
+
+            Wait-ForService -name $svc.Name
+        }
+
+        exit 1
+    }
 
     Write-Host "Config updated successfully"
 }

@@ -179,6 +179,12 @@ function Update-AlloyConfig {
 
     Write-Host "Config updated successfully"
 }
+
+function Get-AlloyService {
+    return Get-Service | Where-Object {
+        $_.Name -like "*alloy*" -or $_.DisplayName -like "*alloy*"
+    } | Select-Object -First 1
+}
 # ===== MAIN LOGIC =====
 
 $svc = Get-AlloyService

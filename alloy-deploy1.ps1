@@ -6,6 +6,9 @@ param (
     [string]$API_KEY,
     [string]$ENVIRONMENT = "prod"
 )
+$alloyPath = "C:\Program Files\GrafanaLabs\Alloy"
+$configPath = "$alloyPath\config.alloy"
+$backup = "$configPath" + "_bak"
 # ===== FUNCTION: SET ENVIRONMENT VARIABLES =====
 function Set-AlloyEnvironmentVariables {
 

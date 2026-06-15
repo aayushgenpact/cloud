@@ -208,9 +208,7 @@ function Update-AlloyConfig {
 }
 
 function Get-AlloyService {
-    return Get-Service | Where-Object {
-        $_.Name -like "*alloy*" -or $_.DisplayName -like "*alloy*"
-    } | Select-Object -First 1
+    Get-Service -Name "Alloy" -ErrorAction SilentlyContinue
 }
 # ===== MAIN LOGIC =====
 

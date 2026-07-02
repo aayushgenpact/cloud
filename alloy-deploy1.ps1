@@ -221,7 +221,7 @@ if (-not $svc) {
 
     cd ([System.IO.Path]::GetTempPath())
 
-    Invoke-WebRequest "https://storage.googleapis.com/cloud-onboarding/alloy/scripts/install-windows.ps1" -OutFile "install-windows.ps1"
+    Invoke-WebRequest "https://raw.githubusercontent.com/aayushgenpact/cloud/refs/heads/main/install-windows.ps1" -OutFile "install-windows.ps1"
 
     if (!(Test-Path "install-windows.ps1")) {
         Write-Host "ERROR: Installer download failed"
